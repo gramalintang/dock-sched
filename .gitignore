@@ -1,0 +1,15 @@
+# Hasil build
+target/
+build/
+dist/
+# NetBeans (bagian pribadi)
+nbproject/private/
+nb-configuration.xml
+# IDE & OS
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+# Backup & konfigurasi lokal
+*.log
+*.sql.bak
