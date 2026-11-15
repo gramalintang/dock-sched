@@ -101,6 +101,8 @@ public class TruckController {
         try (Connection c = Koneksi.buka()) {
             c.setAutoCommit(false);
             try {
+                // Serialisasi cek plat + insert: tabel tidak punya UNIQUE untuk plat aktif.
+                PenjadwalanController.kunciPenjadwalan(c);
                 if (platMasihAktif(c, t.getNomorPolisi(), 0)) {
                     throw new AplikasiException("Truck dengan nomor polisi " + t.getNomorPolisi()
                             + " masih terdaftar dan belum selesai diproses.");
@@ -205,6 +207,7 @@ public class TruckController {
         try (Connection c = Koneksi.buka()) {
             c.setAutoCommit(false);
             try {
+                PenjadwalanController.kunciPenjadwalan(c);
                 Truck lama = null;
                 try (PreparedStatement ps = c.prepareStatement(SELECT_TRUCK + "WHERE t.id_truck = ? FOR UPDATE")) {
                     ps.setInt(1, t.getIdTruck());

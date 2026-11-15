@@ -10,9 +10,15 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 /** Autentikasi pengguna (UC-01; DS-F-01.1 - 01.5). */
 public class AuthController {
+
+    static final int MAKS_GAGAL = 5;
+    static final int KUNCI_MENIT = 15;
 
     /**
      * Memvalidasi username dan password terhadap tabel pengguna (DS-F-01.2).
@@ -25,19 +31,56 @@ public class AuthController {
         String sql = "SELECT id_pengguna, username, password_hash, nama_lengkap, peran, aktif "
                 + "FROM pengguna WHERE username = ? AND aktif = 1";
         try (Connection c = Koneksi.buka(); PreparedStatement ps = c.prepareStatement(sql)) {
+            periksaKunciLogin(c, username.trim());
             ps.setString(1, username.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next() && PasswordUtil.verify(password, rs.getString("password_hash"))) {
                     Pengguna p = petakan(rs);
-                    try (PreparedStatement cek = c.prepareStatement("SELECT nilai FROM pengaturan WHERE kunci = 'programmer_id'"); ResultSet rp = cek.executeQuery()) {
-                        if (rp.next()) p.setProgrammer(Integer.toString(p.getIdPengguna()).equals(rp.getString(1)));
-                    }
-                    Audit.catat(c, p.getIdPengguna(), "LOGIN", "Login berhasil: " + p.getUsername());
+                    p.setProgrammer(adalahProgrammer(c, p.getIdPengguna()));
+                    Audit.catat(c, p.getIdPengguna(), "LOGIN", detailLoginBerhasil(username.trim()));
                     return p;
                 }
             }
-            Audit.catat(c, null, "LOGIN_GAGAL", "Percobaan login gagal untuk username: " + username.trim());
+            Audit.catat(c, null, "LOGIN_GAGAL", detailLoginGagal(username.trim()));
             return null;
+        }
+    }
+
+    private void periksaKunciLogin(Connection c, String username) throws SQLException {
+        String sql = "SELECT COUNT(*), MIN(waktu) FROM log_aktivitas WHERE aktivitas = 'LOGIN_GAGAL' AND detail = ? "
+                + "AND waktu > ? AND waktu > COALESCE((SELECT MAX(waktu) FROM log_aktivitas "
+                + "WHERE aktivitas = 'LOGIN' AND detail = ?), '1970-01-01')";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, potong(detailLoginGagal(username)));
+            ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now().minusMinutes(KUNCI_MENIT)));
+            ps.setString(3, potong(detailLoginBerhasil(username)));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getInt(1) >= MAKS_GAGAL) {
+                    LocalDateTime terbuka = rs.getTimestamp(2).toLocalDateTime().plusMinutes(KUNCI_MENIT);
+                    long sisa = Math.max(1, Duration.between(LocalDateTime.now(), terbuka).toMinutes() + 1);
+                    throw new AplikasiException("Terlalu banyak percobaan login gagal. Coba lagi dalam " + sisa
+                            + " menit.");
+                }
+            }
+        }
+    }
+
+    private static String detailLoginGagal(String username) {
+        return "Percobaan login gagal untuk username: " + username;
+    }
+
+    private static String detailLoginBerhasil(String username) {
+        return "Login berhasil: " + username;
+    }
+
+    private static String potong(String detail) {
+        return detail.length() > 250 ? detail.substring(0, 250) : detail;
+    }
+
+    static boolean adalahProgrammer(Connection c, int idPengguna) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT nilai FROM pengaturan WHERE kunci = 'programmer_id'");
+                ResultSet rs = ps.executeQuery()) {
+            return rs.next() && Integer.toString(idPengguna).equals(rs.getString(1));
         }
     }
 

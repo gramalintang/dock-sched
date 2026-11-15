@@ -157,7 +157,7 @@ public class LoginFrame extends javax.swing.JFrame {
         lblStatus.setText("Menghubungkan ke database...");
         BackgroundTask.<Pengguna>jalankan(() -> {
             DatabaseInit.siapkan();
-            if (DatabaseInit.requiereProgrammerInicial()) return new Pengguna();
+            if (DatabaseInit.perluProgrammerAwal()) return new Pengguna();
             if (username.trim().isEmpty() || password.length == 0) return null;
             return auth.login(username, password);
         }, pengguna -> {

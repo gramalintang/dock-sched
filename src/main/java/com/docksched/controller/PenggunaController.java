@@ -104,7 +104,7 @@ public class PenggunaController {
         try (Connection c = Koneksi.buka()) {
             c.setAutoCommit(false);
             try {
-                if (!admin.isProgrammer() && targetAdalahProgrammer(c, p.getIdPengguna())) {
+                if (!admin.isProgrammer() && AuthController.adalahProgrammer(c, p.getIdPengguna())) {
                     throw new AplikasiException("Akun Programmer hanya dapat dikelola oleh Programmer.");
                 }
                 if (usernameAda(c, p.getUsername(), p.getIdPengguna())) {
@@ -135,12 +135,6 @@ public class PenggunaController {
                 c.rollback();
                 throw e;
             }
-        }
-    }
-
-    private boolean targetAdalahProgrammer(Connection c, int id) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("SELECT nilai FROM pengaturan WHERE kunci='programmer_id'"); ResultSet rs = ps.executeQuery()) {
-            return rs.next() && Integer.toString(id).equals(rs.getString(1));
         }
     }
 

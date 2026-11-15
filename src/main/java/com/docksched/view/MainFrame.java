@@ -16,6 +16,7 @@ import java.awt.Window;
 import java.awt.event.AWTEventListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -49,7 +50,9 @@ public class MainFrame extends javax.swing.JFrame {
     private final AWTEventListener pemantauAktivitas = e -> aktivitasTerakhir = System.currentTimeMillis();
     private final Timer timerBerkala;
     private final Timer timerJam;
+    private final Timer timerBackup;
     private boolean sudahKeluar;
+    private LocalDate tanggalPeringatanBackup;
 
     public MainFrame(Pengguna pengguna) {
         this.pengguna = pengguna;
@@ -102,7 +105,10 @@ public class MainFrame extends javax.swing.JFrame {
         if (!menu.isEmpty()) {
             tampilkan(daftarMenu.containsKey("dashboard") ? "dashboard" : menu.get(0).kunci());
         }
-        jalankanBackupHarian();
+        // Dicek ulang tiap jam agar aplikasi yang terbuka melewati tengah malam tetap membuat cadangan hari baru.
+        timerBackup = new Timer(60 * 60 * 1000, e -> jalankanBackupHarian());
+        timerBackup.setInitialDelay(0);
+        timerBackup.start();
     }
 
     @SuppressWarnings("unchecked")
@@ -242,6 +248,7 @@ public class MainFrame extends javax.swing.JFrame {
         sudahKeluar = true;
         timerBerkala.stop();
         timerJam.stop();
+        timerBackup.stop();
         Toolkit.getDefaultToolkit().removeAWTEventListener(pemantauAktivitas);
         Pengguna p = pengguna;
         Sesi.akhiri();
@@ -284,17 +291,19 @@ public class MainFrame extends javax.swing.JFrame {
         }, ok -> UiUtil.info(this, "Password berhasil diganti."), err -> UiUtil.tampilkanError(this, err));
     }
 
-    /** Cadangan basis data otomatis minimal sekali sehari (DS-NF-05); kegagalan tidak mengganggu pengguna. */
+    /** Cadangan basis data otomatis minimal sekali sehari (DS-NF-05). Kegagalan diberitahukan sekali per hari. */
     private void jalankanBackupHarian() {
-        Thread t = new Thread(() -> {
-            try {
-                new BackupService().cadangkanBilaPerlu();
-            } catch (Exception e) {
-                System.err.println("Backup harian gagal: " + e.getMessage());
+        BackgroundTask.<Boolean>jalankan(() -> {
+            new BackupService().cadangkanBilaPerlu();
+            return true;
+        }, ok -> { }, err -> {
+            System.err.println("Backup harian gagal: " + err);
+            if (!LocalDate.now().equals(tanggalPeringatanBackup)) {
+                tanggalPeringatanBackup = LocalDate.now();
+                UiUtil.peringatan(this, "Cadangan database harian gagal dibuat dan akan dicoba lagi dalam 1 jam.\n\n"
+                        + "Detail: " + UiUtil.ringkas(String.valueOf(err.getMessage())));
             }
-        }, "backup-harian");
-        t.setDaemon(true);
-        t.start();
+        });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

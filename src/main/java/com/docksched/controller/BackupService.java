@@ -7,6 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -27,6 +29,9 @@ public class BackupService {
     private static final String[] TABEL = {"pengguna", "dock", "pengaturan", "truck", "jadwal", "log_status",
         "log_aktivitas"};
 
+    /** Lama cadangan disimpan sebelum dihapus otomatis. */
+    static final int SIMPAN_HARI = 30;
+
     public Path folder() {
         return Koneksi.folderData().resolve("backup");
     }
@@ -46,22 +51,53 @@ public class BackupService {
     }
 
     public Path cadangkan() throws SQLException, IOException {
-        Files.createDirectories(folder());
-        Path berkas = folder().resolve("dock_sched_"
+        Path dir = folder();
+        Files.createDirectories(dir);
+        aturIzinPemilik(dir, "rwx------");
+        Path berkas = dir.resolve("dock_sched_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".sql");
-        try (Connection c = Koneksi.buka(); BufferedWriter w = Files.newBufferedWriter(berkas, StandardCharsets.UTF_8)) {
-            w.write("-- Cadangan DOCK-SCHED " + LocalDateTime.now() + "\n");
-            w.write("-- Pulihkan: buat database lewat aplikasi (atau database/schema.sql), lalu jalankan berkas ini.\n");
-            w.write("SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n");
-            for (int i = TABEL.length - 1; i >= 0; i--) {
-                w.write("DELETE FROM " + TABEL[i] + ";\n");
+        Path sementara = dir.resolve(berkas.getFileName() + ".part");
+        try {
+            try (Connection c = Koneksi.buka();
+                    BufferedWriter w = Files.newBufferedWriter(sementara, StandardCharsets.UTF_8)) {
+                aturIzinPemilik(sementara, "rw-------");
+                w.write("-- Cadangan DOCK-SCHED " + LocalDateTime.now() + "\n");
+                w.write("-- Pulihkan: buat database lewat aplikasi (atau database/schema.sql), lalu jalankan berkas ini.\n");
+                w.write("SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n");
+                for (int i = TABEL.length - 1; i >= 0; i--) {
+                    w.write("DELETE FROM " + TABEL[i] + ";\n");
+                }
+                for (String tabel : TABEL) {
+                    tulisTabel(c, w, tabel);
+                }
+                w.write("SET FOREIGN_KEY_CHECKS=1;\n");
             }
-            for (String tabel : TABEL) {
-                tulisTabel(c, w, tabel);
-            }
-            w.write("SET FOREIGN_KEY_CHECKS=1;\n");
+            Files.move(sementara, berkas, StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            Files.deleteIfExists(sementara);
         }
+        hapusCadanganLama(dir);
         return berkas;
+    }
+
+    private void hapusCadanganLama(Path dir) throws IOException {
+        String batas = "dock_sched_" + LocalDate.now().minusDays(SIMPAN_HARI).format(DateTimeFormatter.BASIC_ISO_DATE);
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir, "dock_sched_*.sql")) {
+            for (Path p : ds) {
+                // Nama berkas diawali tanggal yyyyMMdd sehingga urutan teks = urutan tanggal.
+                if (p.getFileName().toString().compareTo(batas) < 0) {
+                    Files.deleteIfExists(p);
+                }
+            }
+        }
+    }
+
+    private static void aturIzinPemilik(Path p, String izin) throws IOException {
+        try {
+            Files.setPosixFilePermissions(p, PosixFilePermissions.fromString(izin));
+        } catch (UnsupportedOperationException e) {
+            // shortcut: Windows tidak mendukung izin POSIX; bila perlu, atur ACL lewat AclFileAttributeView.
+        }
     }
 
     private void tulisTabel(Connection c, BufferedWriter w, String tabel) throws SQLException, IOException {

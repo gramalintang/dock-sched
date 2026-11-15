@@ -28,7 +28,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Penjadwalan slot dock dengan SAW dan penjadwalan ulang manual (UC-05 - UC-08; DS-F-03.1 - 03.6). */
+/**
+ * Penjadwalan slot dock dengan SAW dan penjadwalan ulang manual (UC-05 - UC-08;
+ * DS-F-03.1 - 03.6).
+ */
 public class PenjadwalanController {
 
     /** Hasil satu kali proses penjadwalan. */
@@ -46,8 +49,10 @@ public class PenjadwalanController {
     private final PengaturanController pengaturanController = new PengaturanController();
 
     /**
-     * Menghitung skor SAW untuk semua truck "Menunggu", mengurutkan, mengalokasikan dock, dan mencatat hasilnya
-     * (truck, dock, waktu keputusan). Jadwal manual Admin dipertahankan. Dijalankan dalam satu transaksi.
+     * Menghitung skor SAW untuk semua truck "Menunggu", mengurutkan, mengalokasikan
+     * dock, dan mencatat hasilnya
+     * (truck, dock, waktu keputusan). Jadwal manual Admin dipertahankan. Dijalankan
+     * dalam satu transaksi.
      */
     public HasilPenjadwalan jalankan(Pengguna user) throws SQLException {
         LocalDateTime sekarang = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -106,7 +111,7 @@ public class PenjadwalanController {
     }
 
     /** Mutex antar pengguna: proses penjadwalan tidak boleh berjalan bersamaan. */
-    private void kunciPenjadwalan(Connection c) throws SQLException {
+    static void kunciPenjadwalan(Connection c) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
                 "SELECT nilai FROM pengaturan WHERE kunci = 'bobot_muatan' FOR UPDATE")) {
             ps.executeQuery().close();
@@ -153,8 +158,8 @@ public class PenjadwalanController {
                 if (status == StatusProses.MENUNGGU) {
                     iv = new SlotAllocator.Interval(masuk, selesai);
                 } else {
-                    // Truck sedang di dock: dock terpakai dari sekarang sampai estimasi selesai (minimal sampai sekarang).
-                    iv = new SlotAllocator.Interval(sekarang, selesai.isAfter(sekarang) ? selesai : sekarang);
+                    LocalDateTime minimal = sekarang.plusMinutes(Konstanta.SISA_MELEWATI_ESTIMASI_MENIT);
+                    iv = new SlotAllocator.Interval(sekarang, selesai.isAfter(minimal) ? selesai : minimal);
                 }
                 peta.computeIfAbsent(rs.getInt("id_dock"), k -> new ArrayList<>()).add(iv);
             }
@@ -185,12 +190,15 @@ public class PenjadwalanController {
         return j;
     }
 
-    /** Jadwal aktif untuk truck yang belum selesai, urut berdasarkan estimasi masuk. */
+    /**
+     * Jadwal aktif untuk truck yang belum selesai, urut berdasarkan estimasi masuk.
+     */
     public List<Jadwal> daftarAktif() throws SQLException {
         String sql = SELECT_JADWAL + "WHERE j.status = 'AKTIF' AND t.status_proses <> 'SELESAI_BERANGKAT' "
                 + "AND t.diarsipkan = 0 ORDER BY j.estimasi_waktu_masuk, j.urutan, j.id_jadwal";
         List<Jadwal> hasil = new ArrayList<>();
-        try (Connection c = Koneksi.buka(); PreparedStatement ps = c.prepareStatement(sql);
+        try (Connection c = Koneksi.buka();
+                PreparedStatement ps = c.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 hasil.add(petakan(rs));
@@ -211,7 +219,8 @@ public class PenjadwalanController {
     }
 
     /**
-     * Menjadwalkan ulang manual (UC-08, DS-F-03.5): pindah dock dan/atau waktu masuk. Hanya Admin Gudang,
+     * Menjadwalkan ulang manual (UC-08, DS-F-03.5): pindah dock dan/atau waktu
+     * masuk. Hanya Admin Gudang,
      * hanya untuk truck "Menunggu", tanpa bentrok dengan jadwal lain.
      */
     public void jadwalUlang(int idJadwal, int idDockBaru, LocalDateTime masukBaru, String keterangan, Pengguna admin)
@@ -314,7 +323,8 @@ public class PenjadwalanController {
     }
 
     /**
-     * Truck batal (UC-08): jadwal dibatalkan dan truck diarsipkan sehingga keluar dari antrean.
+     * Truck batal (UC-08): jadwal dibatalkan dan truck diarsipkan sehingga keluar
+     * dari antrean.
      * Datanya tetap tersimpan (tidak dihapus permanen, DS-NF-04).
      */
     public void batalkanTruck(int idJadwal, String keterangan, Pengguna admin) throws SQLException {
@@ -324,6 +334,7 @@ public class PenjadwalanController {
         try (Connection c = Koneksi.buka()) {
             c.setAutoCommit(false);
             try {
+                kunciPenjadwalan(c);
                 Jadwal j = null;
                 try (PreparedStatement ps = c.prepareStatement(SELECT_JADWAL + "WHERE j.id_jadwal = ? FOR UPDATE")) {
                     ps.setInt(1, idJadwal);
@@ -378,14 +389,16 @@ public class PenjadwalanController {
     }
 
     /**
-     * Teks estimasi jadwal untuk diteruskan ke sopir (UC-07). Cara penyampaian ke sopir masih TBD-2 di SRS,
+     * Teks estimasi jadwal untuk diteruskan ke sopir (UC-07). Cara penyampaian ke
+     * sopir masih TBD-2 di SRS,
      * sehingga aplikasi hanya menyediakan teks yang dapat disalin.
      */
     public static String teksInformasiSopir(List<Jadwal> daftar) {
         StringBuilder sb = new StringBuilder();
         for (Jadwal j : daftar) {
             sb.append(j.getNomorPolisi()).append(" (").append(j.getNamaSopir()).append("): masuk ")
-                    .append(j.getKodeDock()).append(" pukul ").append(j.getEstimasiWaktuMasuk().format(Konstanta.FMT_WAKTU))
+                    .append(j.getKodeDock()).append(" pukul ")
+                    .append(j.getEstimasiWaktuMasuk().format(Konstanta.FMT_WAKTU))
                     .append(", estimasi selesai ").append(j.getEstimasiWaktuSelesai().format(Konstanta.FMT_JAM))
                     .append('\n');
         }

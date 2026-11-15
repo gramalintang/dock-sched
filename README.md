@@ -30,6 +30,7 @@ Perintah: `mysql -u root -p < database/dock_sched.sql`
 - Pada database baru, buat akun Programmer pertama melalui dialog setup saat aplikasi dibuka. Akun Programmer memiliki akses penuh.
 - Programmer membuat akun Admin Gudang, Petugas Dock, dan Kepala Gudang melalui menu Master Data.
 - Password disimpan menggunakan PBKDF2-HMAC-SHA256.
+- Setelah 5 percobaan login gagal dalam 15 menit, username tersebut dikunci sementara selama 15 menit.
 - Identitas Programmer dicatat pada tabel `pengaturan` yang sudah ada; struktur tabel dan relasi database tidak ditambah/diubah.
 - **Penting untuk database lama:** akun yang sebelumnya sudah tersimpan tidak dihapus otomatis agar data dan relasi tetap aman. Sebelum digunakan, nonaktifkan atau ubah password akun lama melalui pengelolaan akun setelah login dengan otoritas yang sah.
 

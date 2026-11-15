@@ -90,11 +90,12 @@ public class DockController {
     }
 
     /** Memperbarui dock. Status TERISI diatur sistem; Admin hanya boleh memilih Tersedia atau Rusak. */
-    public void perbarui(Dock d, Pengguna user) throws SQLException {
+    public int perbarui(Dock d, Pengguna user) throws SQLException {
         validasi(d);
         try (Connection c = Koneksi.buka()) {
             c.setAutoCommit(false);
             try {
+                PenjadwalanController.kunciPenjadwalan(c);
                 StatusDock statusLama = null;
                 try (PreparedStatement ps = c.prepareStatement(
                         "SELECT status_ketersediaan FROM dock WHERE id_dock = ? FOR UPDATE")) {
@@ -128,14 +129,33 @@ public class DockController {
                     ps.setInt(6, d.getIdDock());
                     ps.executeUpdate();
                 }
+                int dibatalkan = batalkanJadwalTidakValid(c, d, statusBaru);
                 Audit.catat(c, user.getIdPengguna(), "UBAH_DOCK", "Dock " + d.getKodeDock() + " status "
                         + statusBaru.getLabel() + ", kapasitas " + d.getKapasitas()
-                        + (d.isSerbaguna() ? ", serbaguna" : ", khusus " + d.getJenisMuatan().getLabel()));
+                        + (d.isSerbaguna() ? ", serbaguna" : ", khusus " + d.getJenisMuatan().getLabel())
+                        + (dibatalkan > 0 ? "; " + dibatalkan + " jadwal dibatalkan" : ""));
                 c.commit();
+                return dibatalkan;
             } catch (SQLException | RuntimeException e) {
                 c.rollback();
                 throw e;
             }
+        }
+    }
+
+    private int batalkanJadwalTidakValid(Connection c, Dock d, StatusDock statusBaru) throws SQLException {
+        String sql = "UPDATE jadwal j JOIN truck t ON t.id_truck = j.id_truck "
+                + "SET j.status = 'DIGANTI', j.keterangan = ? "
+                + "WHERE j.id_dock = ? AND j.status = 'AKTIF' AND t.status_proses = 'MENUNGGU' "
+                + "AND (? OR (? = 0 AND t.jenis_muatan <> ?))";
+        boolean rusak = statusBaru == StatusDock.RUSAK;
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, rusak ? "Dock rusak; perlu penjadwalan ulang" : "Jenis dock berubah; perlu penjadwalan ulang");
+            ps.setInt(2, d.getIdDock());
+            ps.setBoolean(3, rusak);
+            ps.setBoolean(4, d.isSerbaguna());
+            ps.setString(5, d.getJenisMuatan().name());
+            return ps.executeUpdate();
         }
     }
 

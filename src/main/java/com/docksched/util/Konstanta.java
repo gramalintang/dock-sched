@@ -14,6 +14,8 @@ public final class Konstanta {
     /** Target maksimal proses dari truck parkir di dock sampai berangkat (DS-NF-14). */
     public static final int TARGET_MENIT = 45;
 
+    public static final int SISA_MELEWATI_ESTIMASI_MENIT = 15;
+
     /** Batas tidak aktif sebelum logout otomatis (DS-F-01.5) = 30 menit. Properti sistem hanya untuk pengujian. */
     public static final int IDLE_MENIT = Integer.getInteger("docksched.idleMinutes", 30);
 

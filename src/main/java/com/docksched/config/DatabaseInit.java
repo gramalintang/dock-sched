@@ -24,6 +24,9 @@ import java.util.List;
  */
 public final class DatabaseInit {
 
+    private static final String SKEMA = "/database/schema.sql";
+    private static final String MIGRASI = "/database/migrasi/";
+
     private static boolean sudahSiap;
 
     private DatabaseInit() {
@@ -39,11 +42,12 @@ public final class DatabaseInit {
             return;
         }
         try (Connection c = Koneksi.bukaServer(); Statement st = c.createStatement()) {
-            for (String sql : bacaSkrip()) {
+            for (String sql : bacaSkrip(SKEMA)) {
                 st.execute(sql);
             }
         }
         try (Connection c = Koneksi.buka()) {
+            jalankanMigrasi(c);
             c.setAutoCommit(false);
             try {
                 isiDataAwal(c);
@@ -56,32 +60,84 @@ public final class DatabaseInit {
         sudahSiap = true;
     }
 
-    private static List<String> bacaSkrip() throws SQLException {
-        List<String> hasil = new ArrayList<>();
-        try (InputStream in = DatabaseInit.class.getResourceAsStream("/database/schema.sql")) {
+    private static void jalankanMigrasi(Connection c) throws SQLException {
+        int versi = versiSkema(c);
+        while (DatabaseInit.class.getResource(MIGRASI + (versi + 1) + ".sql") != null) {
+            versi++;
+            try (Statement st = c.createStatement()) {
+                for (String sql : bacaSkrip(MIGRASI + versi + ".sql")) {
+                    st.execute(sql);
+                }
+            }
+            try (PreparedStatement ps = c.prepareStatement("INSERT INTO pengaturan (kunci, nilai) VALUES "
+                    + "('versi_skema', ?) ON DUPLICATE KEY UPDATE nilai = VALUES(nilai)")) {
+                ps.setString(1, Integer.toString(versi));
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    private static int versiSkema(Connection c) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT nilai FROM pengaturan WHERE kunci = 'versi_skema'");
+                ResultSet rs = ps.executeQuery()) {
+            return rs.next() ? Integer.parseInt(rs.getString(1).trim()) : 1;
+        } catch (NumberFormatException e) {
+            throw new SQLException("Nilai pengaturan versi_skema rusak.", e);
+        }
+    }
+
+    private static List<String> bacaSkrip(String resource) throws SQLException {
+        try (InputStream in = DatabaseInit.class.getResourceAsStream(resource)) {
             if (in == null) {
-                throw new SQLException("File database/schema.sql tidak ditemukan di dalam aplikasi.");
+                throw new SQLException("File " + resource + " tidak ditemukan di dalam aplikasi.");
             }
             StringBuilder sb = new StringBuilder();
             try (BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
                 String baris;
                 while ((baris = r.readLine()) != null) {
-                    String t = baris.trim();
-                    if (t.isEmpty() || t.startsWith("--")) {
-                        continue;
+                    if (!baris.trim().startsWith("--")) {
+                        sb.append(baris).append('\n');
                     }
-                    sb.append(baris).append('\n');
                 }
             }
-            for (String bagian : sb.toString().split(";")) {
-                if (!bagian.trim().isEmpty()) {
-                    hasil.add(bagian.trim());
-                }
-            }
+            return pisahPerintah(sb.toString());
         } catch (IOException e) {
-            throw new SQLException("Gagal membaca database/schema.sql: " + e.getMessage(), e);
+            throw new SQLException("Gagal membaca " + resource + ": " + e.getMessage(), e);
         }
+    }
+
+    static List<String> pisahPerintah(String skrip) {
+        List<String> hasil = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        char kutip = 0;
+        for (int i = 0; i < skrip.length(); i++) {
+            char ch = skrip.charAt(i);
+            if (kutip != 0) {
+                if (ch == '\\' && i + 1 < skrip.length()) {
+                    sb.append(ch).append(skrip.charAt(++i));
+                    continue;
+                }
+                if (ch == kutip) {
+                    kutip = 0;
+                }
+            } else if (ch == '\'' || ch == '"' || ch == '`') {
+                kutip = ch;
+            } else if (ch == ';') {
+                tambahBilaIsi(hasil, sb);
+                continue;
+            }
+            sb.append(ch);
+        }
+        tambahBilaIsi(hasil, sb);
         return hasil;
+    }
+
+    private static void tambahBilaIsi(List<String> hasil, StringBuilder sb) {
+        String t = sb.toString().trim();
+        if (!t.isEmpty()) {
+            hasil.add(t);
+        }
+        sb.setLength(0);
     }
 
     private static void isiDataAwal(Connection c) throws SQLException {
@@ -95,7 +151,7 @@ public final class DatabaseInit {
     }
 
     /** True when no user has yet been provisioned. No default username/password is created. */
-    public static boolean requiereProgrammerInicial() throws SQLException {
+    public static boolean perluProgrammerAwal() throws SQLException {
         try (Connection c = Koneksi.buka(); PreparedStatement ps = c.prepareStatement(
                 "SELECT COUNT(*) FROM pengguna"); ResultSet rs = ps.executeQuery()) {
             rs.next();

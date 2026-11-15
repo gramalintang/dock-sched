@@ -51,6 +51,10 @@ public class PengaturanController {
         if (p.getNilaiBahanBaku() < 1 || p.getNilaiBarangJadi() < 1) {
             throw new AplikasiException("Nilai prioritas muatan minimal 1.");
         }
+        if (p.getNilaiBahanBaku() <= p.getNilaiBarangJadi()) {
+            // DS-F-03.2: bahan baku masuk harus berprioritas lebih tinggi daripada barang jadi keluar.
+            throw new AplikasiException("Nilai prioritas bahan baku harus lebih besar daripada barang jadi.");
+        }
         String sql = "INSERT INTO pengaturan (kunci, nilai) VALUES (?, ?) ON DUPLICATE KEY UPDATE nilai = VALUES(nilai)";
         try (Connection c = Koneksi.buka()) {
             c.setAutoCommit(false);

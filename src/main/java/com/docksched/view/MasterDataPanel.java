@@ -592,16 +592,16 @@ public class MasterDataPanel extends javax.swing.JPanel implements Halaman {
         d.setJenisMuatan((JenisMuatan) cbJenisDock.getSelectedItem());
         d.setSerbaguna(chkSerbaguna.isSelected());
         d.setStatus((StatusDock) cbStatusDock.getSelectedItem());
-        BackgroundTask.<Boolean>jalankan(() -> {
+        BackgroundTask.<Integer>jalankan(() -> {
             if (baru) {
                 dockController.tambah(d, Sesi.getPengguna());
-            } else {
-                dockController.perbarui(d, Sesi.getPengguna());
+                return 0;
             }
-            return true;
-        }, ok -> {
-            UiUtil.info(this, baru ? "Dock ditambahkan." : "Dock diperbarui.\nCatatan: bila status diubah menjadi Rusak, "
-                    + "jalankan penjadwalan ulang agar truck tidak diarahkan ke dock ini.");
+            return dockController.perbarui(d, Sesi.getPengguna());
+        }, dibatalkan -> {
+            UiUtil.info(this, baru ? "Dock ditambahkan." : "Dock diperbarui." + (dibatalkan > 0
+                    ? "\n" + dibatalkan + " jadwal truck pada dock ini dibatalkan karena tidak lagi sesuai.\n"
+                    + "Jalankan Penjadwalan Slot Dock agar truck tersebut mendapat dock baru." : ""));
             muatDock();
         }, err -> UiUtil.tampilkanError(this, err));
     }
