@@ -1,0 +1,37 @@
+name: Build & Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - run: mvn -B package
+      - name: Susun paket siap-jalan
+        run: |
+          D=paket/DOCK-SCHED
+          mkdir -p $D/lib
+          cp target/DOCK-SCHED.jar $D/
+          cp target/lib/*.jar $D/lib/
+          cp -r database README.md $D/
+          printf '@echo off\r\ncd /d "%%~dp0"\r\njavaw -jar DOCK-SCHED.jar\r\n' > $D/jalankan.bat
+          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec java -jar DOCK-SCHED.jar\n' > $D/jalankan.sh
+          chmod +x $D/jalankan.sh
+          cd paket && zip -r ../DOCK-SCHED.zip DOCK-SCHED
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DOCK-SCHED
+          path: DOCK-SCHED.zip
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: DOCK-SCHED.zip
