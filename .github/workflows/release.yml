@@ -11,8 +11,10 @@ jobs:
         include:
           - os: windows-latest
             label: windows
-          - os: macos-latest   # Apple Silicon
-            label: macos
+          - os: macos-latest       # Apple Silicon (M1/M2/M3/M4)
+            label: macos-apple-silicon
+          - os: macos-15-intel     # Mac Intel
+            label: macos-intel
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -48,7 +50,7 @@ jobs:
             (cd out && 7z a -tzip "../DOCK-SCHED-$LABEL-windows.zip" DOCK-SCHED)
           else
             jpackage --type dmg --mac-package-identifier com.docksched "${ARGS[@]}"
-            mv out/*.dmg "DOCK-SCHED-$LABEL-macos.dmg"
+            mv out/*.dmg "DOCK-SCHED-$LABEL-${{ matrix.label }}.dmg"
           fi
 
       - uses: actions/upload-artifact@v4

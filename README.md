@@ -10,7 +10,8 @@ Apache NetBeans IDE 29 · Java JDK 25 · Java Swing · OOP · H2 Database (mode 
 Buka halaman **Releases** di GitHub, unduh sesuai OS. Java dan database sudah ikut di dalam paket; data tersimpan di folder `~/.docksched` komputer masing-masing.
 - **Windows**: unduh `DOCK-SCHED-<versi>-windows.zip`, ekstrak, buka `DOCK-SCHED\DOCK-SCHED.exe`.
   Bila muncul "Windows protected your PC", klik **More info > Run anyway** (sekali saja).
-- **macOS (Apple Silicon)**: unduh `DOCK-SCHED-<versi>-macos.dmg`, seret DOCK-SCHED ke Applications, buka.
+- **macOS**: unduh `DOCK-SCHED-<versi>-macos-apple-silicon.dmg` (Mac M1/M2/M3/M4) atau
+  `DOCK-SCHED-<versi>-macos-intel.dmg` (Mac Intel; cek di menu Apple > About This Mac), seret DOCK-SCHED ke Applications, buka.
   Bila diblokir, buka **System Settings > Privacy & Security > Open Anyway** (sekali saja).
 
 ### Untuk pengelola rilis
