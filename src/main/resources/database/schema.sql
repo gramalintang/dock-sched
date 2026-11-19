@@ -1,12 +1,9 @@
 -- =====================================================================
--- DOCK-SCHED : skema basis data MySQL (5.7 / 8.0)
+-- DOCK-SCHED : skema basis data H2 tertanam (MODE=MySQL)
 -- Tabel minimal sesuai SRS 2.3: Pengguna, Truck, Dock, Jadwal, LogStatus
 -- Tabel tambahan: log_aktivitas (DS-NF-08) dan pengaturan (bobot SAW, DS-F-03.2)
 -- File ini dijalankan otomatis oleh aplikasi saat pertama kali login.
 -- =====================================================================
-
-CREATE DATABASE IF NOT EXISTS dock_sched CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE dock_sched;
 
 CREATE TABLE IF NOT EXISTS pengguna (
     id_pengguna   INT          NOT NULL AUTO_INCREMENT,
@@ -18,7 +15,7 @@ CREATE TABLE IF NOT EXISTS pengguna (
     dibuat_pada   DATETIME     NOT NULL,
     PRIMARY KEY (id_pengguna),
     UNIQUE KEY uq_pengguna_username (username)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS dock (
     id_dock             INT         NOT NULL AUTO_INCREMENT,
@@ -29,7 +26,7 @@ CREATE TABLE IF NOT EXISTS dock (
     status_ketersediaan ENUM('TERSEDIA','TERISI','RUSAK') NOT NULL DEFAULT 'TERSEDIA',
     PRIMARY KEY (id_dock),
     UNIQUE KEY uq_dock_kode (kode_dock)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS truck (
     id_truck                   INT          NOT NULL AUTO_INCREMENT,
@@ -47,7 +44,7 @@ CREATE TABLE IF NOT EXISTS truck (
     KEY idx_truck_status (status_proses, diarsipkan),
     KEY idx_truck_plat (nomor_polisi),
     CONSTRAINT fk_truck_pengguna FOREIGN KEY (id_pengguna_input) REFERENCES pengguna (id_pengguna)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS jadwal (
     id_jadwal              INT          NOT NULL AUTO_INCREMENT,
@@ -68,7 +65,7 @@ CREATE TABLE IF NOT EXISTS jadwal (
     CONSTRAINT fk_jadwal_truck    FOREIGN KEY (id_truck)    REFERENCES truck (id_truck),
     CONSTRAINT fk_jadwal_dock     FOREIGN KEY (id_dock)     REFERENCES dock (id_dock),
     CONSTRAINT fk_jadwal_pengguna FOREIGN KEY (id_pengguna) REFERENCES pengguna (id_pengguna)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS log_status (
     id_log             INT        NOT NULL AUTO_INCREMENT,
@@ -82,7 +79,7 @@ CREATE TABLE IF NOT EXISTS log_status (
     KEY idx_log_waktu (waktu),
     CONSTRAINT fk_log_truck    FOREIGN KEY (id_truck)    REFERENCES truck (id_truck),
     CONSTRAINT fk_log_pengguna FOREIGN KEY (id_pengguna) REFERENCES pengguna (id_pengguna)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS log_aktivitas (
     id_log_aktivitas INT          NOT NULL AUTO_INCREMENT,
@@ -92,13 +89,13 @@ CREATE TABLE IF NOT EXISTS log_aktivitas (
     waktu            DATETIME     NOT NULL,
     PRIMARY KEY (id_log_aktivitas),
     KEY idx_aktivitas_waktu (waktu)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 CREATE TABLE IF NOT EXISTS pengaturan (
     kunci VARCHAR(50)  NOT NULL,
     nilai VARCHAR(100) NOT NULL,
     PRIMARY KEY (kunci)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- Nilai bawaan pengaturan SPK (dapat diubah Admin Gudang dari menu Master Data & Pengaturan)
 INSERT IGNORE INTO pengaturan (kunci, nilai) VALUES

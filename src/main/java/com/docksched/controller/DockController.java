@@ -144,10 +144,9 @@ public class DockController {
     }
 
     private int batalkanJadwalTidakValid(Connection c, Dock d, StatusDock statusBaru) throws SQLException {
-        String sql = "UPDATE jadwal j JOIN truck t ON t.id_truck = j.id_truck "
-                + "SET j.status = 'DIGANTI', j.keterangan = ? "
-                + "WHERE j.id_dock = ? AND j.status = 'AKTIF' AND t.status_proses = 'MENUNGGU' "
-                + "AND (? OR (? = 0 AND t.jenis_muatan <> ?))";
+        String sql = "UPDATE jadwal SET status = 'DIGANTI', keterangan = ? "
+                + "WHERE id_dock = ? AND status = 'AKTIF' AND id_truck IN (SELECT t.id_truck FROM truck t "
+                + "WHERE t.status_proses = 'MENUNGGU' AND (? OR (? = 0 AND t.jenis_muatan <> ?)))";
         boolean rusak = statusBaru == StatusDock.RUSAK;
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, rusak ? "Dock rusak; perlu penjadwalan ulang" : "Jenis dock berubah; perlu penjadwalan ulang");

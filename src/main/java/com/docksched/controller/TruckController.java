@@ -20,6 +20,10 @@ import java.util.List;
 /** Input, pencarian, dan penyuntingan data truck (UC-02, UC-03, UC-04; DS-F-02.1 - 02.5). */
 public class TruckController {
 
+    /** Urutan tampil status: yang sedang dikerjakan di atas (CASE standar, pengganti FIELD() khas MySQL). */
+    private static final String URUTAN_STATUS = "CASE t.status_proses WHEN 'LOADING_UNLOADING' THEN 1 "
+            + "WHEN 'ADMINISTRASI' THEN 2 WHEN 'PARKIR_DOCK' THEN 3 WHEN 'MENUNGGU' THEN 4 ELSE 5 END";
+
     /** Kolom dasar truck beserta data turunan (waktu parkir/selesai, dock aktif). Kompatibel MySQL 5.7/8.0. */
     static final String SELECT_TRUCK = "SELECT t.id_truck, t.nomor_polisi, t.nama_sopir, t.jenis_muatan, "
             + "t.pemasok_pelanggan, t.perkiraan_waktu_kedatangan, t.estimasi_durasi_menit, t.status_proses, "
@@ -265,7 +269,7 @@ public class TruckController {
     /** Truck yang belum selesai (untuk menu Update Status). */
     public List<Truck> daftarBerjalan() throws SQLException {
         String sql = SELECT_TRUCK + "WHERE t.diarsipkan = 0 AND t.status_proses <> 'SELESAI_BERANGKAT' "
-                + "ORDER BY FIELD(t.status_proses, 'LOADING_UNLOADING', 'ADMINISTRASI', 'PARKIR_DOCK', 'MENUNGGU'), "
+                + "ORDER BY " + URUTAN_STATUS + ", "
                 + "t.perkiraan_waktu_kedatangan, t.id_truck";
         List<Truck> hasil = new ArrayList<>();
         try (Connection c = Koneksi.buka(); PreparedStatement ps = c.prepareStatement(sql);
@@ -281,7 +285,7 @@ public class TruckController {
     public List<Truck> daftarDashboard(LocalDateTime sekarang) throws SQLException {
         String sql = SELECT_TRUCK + "WHERE t.diarsipkan = 0 AND (t.status_proses <> 'SELESAI_BERANGKAT' OR "
                 + "(SELECT MAX(l.waktu) FROM log_status l WHERE l.id_truck = t.id_truck) >= ?) "
-                + "ORDER BY FIELD(t.status_proses, 'LOADING_UNLOADING', 'ADMINISTRASI', 'PARKIR_DOCK', 'MENUNGGU', 'SELESAI_BERANGKAT'), "
+                + "ORDER BY " + URUTAN_STATUS + ", "
                 + "t.perkiraan_waktu_kedatangan, t.id_truck";
         List<Truck> hasil = new ArrayList<>();
         try (Connection c = Koneksi.buka(); PreparedStatement ps = c.prepareStatement(sql)) {

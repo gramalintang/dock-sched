@@ -3,11 +3,20 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
-permissions:
-  contents: write
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+          - os: macos-latest   # Apple Silicon
+            label: macos
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -15,23 +24,49 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - run: mvn -B package
-      - name: Susun paket siap-jalan
+
+      - run: mvn -B -ntp package
+
+      - name: Versi
         run: |
-          D=paket/DOCK-SCHED
-          mkdir -p $D/lib
-          cp target/DOCK-SCHED.jar $D/
-          cp target/lib/*.jar $D/lib/
-          cp -r database README.md $D/
-          printf '@echo off\r\ncd /d "%%~dp0"\r\njavaw -jar DOCK-SCHED.jar\r\n' > $D/jalankan.bat
-          printf '#!/bin/sh\ncd "$(dirname "$0")"\nexec java -jar DOCK-SCHED.jar\n' > $D/jalankan.sh
-          chmod +x $D/jalankan.sh
-          cd paket && zip -r ../DOCK-SCHED.zip DOCK-SCHED
+          # Tag v1.1-h2: LABEL=1.1-h2 untuk nama berkas, VER=1.1 untuk jpackage (hanya menerima angka).
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then L="${GITHUB_REF_NAME#v}"; else L="1.0-dev"; fi
+          echo "LABEL=$L" >> "$GITHUB_ENV"
+          echo "VER=${L%%-*}" >> "$GITHUB_ENV"
+
+      # jpackage membundel runtime Java, jadi user tidak perlu memasang Java.
+      - name: Paket aplikasi
+        run: |
+          mkdir -p input/lib out
+          cp target/DOCK-SCHED.jar input/
+          cp target/lib/*.jar input/lib/
+          ARGS=(--name DOCK-SCHED --input input --main-jar DOCK-SCHED.jar
+                --main-class com.docksched.Main --app-version "$VER"
+                --vendor DOCK-SCHED --dest out)
+          if [ "${{ matrix.label }}" = windows ]; then
+            jpackage --type app-image "${ARGS[@]}"
+            (cd out && 7z a -tzip "../DOCK-SCHED-$LABEL-windows.zip" DOCK-SCHED)
+          else
+            jpackage --type dmg --mac-package-identifier com.docksched "${ARGS[@]}"
+            mv out/*.dmg "DOCK-SCHED-$LABEL-macos.dmg"
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
-          name: DOCK-SCHED
-          path: DOCK-SCHED.zip
-      - if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+          name: DOCK-SCHED-${{ matrix.label }}
+          path: DOCK-SCHED-*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
         with:
-          files: DOCK-SCHED.zip
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: DOCK-SCHED-*
+          generate_release_notes: true

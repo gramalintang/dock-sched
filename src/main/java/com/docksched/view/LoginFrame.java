@@ -45,7 +45,6 @@ public class LoginFrame extends javax.swing.JFrame {
         pnlKaki = new javax.swing.JPanel();
         lblStatus = new javax.swing.JLabel();
         pnlKakiTombol = new javax.swing.JPanel();
-        btnKoneksi = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("DOCK-SCHED - Login");
@@ -125,16 +124,6 @@ public class LoginFrame extends javax.swing.JFrame {
         lblStatus.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 10, 0, 10));
         pnlKaki.add(lblStatus, java.awt.BorderLayout.NORTH);
         pnlKakiTombol.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.CENTER));
-        btnKoneksi.setText("Pengaturan Koneksi...");
-        btnKoneksi.setBorderPainted(false);
-        btnKoneksi.setContentAreaFilled(false);
-        btnKoneksi.setForeground(new java.awt.Color(31, 78, 121));
-        btnKoneksi.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnKoneksiActionPerformed(evt);
-            }
-        });
-        pnlKakiTombol.add(btnKoneksi);
         pnlKaki.add(pnlKakiTombol, java.awt.BorderLayout.SOUTH);
         getContentPane().add(pnlKaki, java.awt.BorderLayout.SOUTH);
 
@@ -144,10 +133,6 @@ public class LoginFrame extends javax.swing.JFrame {
     private void btnMasukActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMasukActionPerformed
         masuk();
     }//GEN-LAST:event_btnMasukActionPerformed
-
-    private void btnKoneksiActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnKoneksiActionPerformed
-        new KoneksiDialog(this).setVisible(true);
-    }//GEN-LAST:event_btnKoneksiActionPerformed
 
     private void masuk() {
         String username = txtUsername.getText();
@@ -187,16 +172,11 @@ public class LoginFrame extends javax.swing.JFrame {
                 dasar = dasar.getCause();
             }
             if (dasar instanceof SQLException) {
-                Object[] pilihan = {"Atur Koneksi", "Tutup"};
-                int p = JOptionPane.showOptionDialog(this,
-                        "Tidak dapat terhubung ke database MySQL.\n\n"
-                        + "Pastikan MySQL Server sudah berjalan, lalu periksa host, port, username, dan password.\n\n"
+                JOptionPane.showMessageDialog(this,
+                        "Tidak dapat membuka database aplikasi.\n\n"
+                        + "Pastikan DOCK-SCHED tidak sedang terbuka di jendela lain, lalu coba lagi.\n\n"
                         + "Detail: " + UiUtil.ringkas(dasar.getMessage()),
-                        "Koneksi Database Gagal", JOptionPane.DEFAULT_OPTION, JOptionPane.ERROR_MESSAGE, null,
-                        pilihan, pilihan[0]);
-                if (p == 0) {
-                    new KoneksiDialog(this).setVisible(true);
-                }
+                        "Database Gagal Dibuka", JOptionPane.ERROR_MESSAGE);
             } else {
                 UiUtil.tampilkanError(this, err);
             }
@@ -242,6 +222,5 @@ public class LoginFrame extends javax.swing.JFrame {
     private javax.swing.JPanel pnlKaki;
     private javax.swing.JLabel lblStatus;
     private javax.swing.JPanel pnlKakiTombol;
-    private javax.swing.JButton btnKoneksi;
     // End of variables declaration//GEN-END:variables
 }

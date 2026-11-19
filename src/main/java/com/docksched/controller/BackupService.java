@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Cadangan basis data ke berkas .sql berisi perintah INSERT (DS-NF-05: minimal sekali sehari). Berkas disimpan di
- * ~/.docksched/backup dan dapat dipulihkan dengan menjalankannya di MySQL.
+ * ~/.docksched/backup dan dapat dipulihkan dengan menjalankannya di H2 (RUNSCRIPT).
  */
 public class BackupService {
 

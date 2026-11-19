@@ -481,7 +481,7 @@ public class MasterDataPanel extends javax.swing.JPanel implements Halaman {
         pnlAtasArsip.add(pnlArsip, java.awt.BorderLayout.NORTH);
         pnlBackup.setBorder(javax.swing.BorderFactory.createTitledBorder("Cadangan basis data"));
         pnlBackup.setLayout(new java.awt.BorderLayout());
-        lblCadangan.setText("<html>Cadangan otomatis dibuat sekali sehari saat aplikasi dibuka. Berkas .sql dapat dipulihkan lewat MySQL.</html>");
+        lblCadangan.setText("<html>Cadangan otomatis dibuat sekali sehari saat aplikasi dibuka. Berkas .sql berisi perintah INSERT untuk pemulihan.</html>");
         pnlBackup.add(lblCadangan, java.awt.BorderLayout.NORTH);
         pnlBarisBackup.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT));
         btnBackup.setText("Buat Cadangan Sekarang");

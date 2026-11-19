@@ -32,16 +32,11 @@ public final class DatabaseInit {
     private DatabaseInit() {
     }
 
-    /** Dipanggil saat pengaturan koneksi berubah agar database disiapkan ulang pada server yang baru. */
-    public static synchronized void reset() {
-        sudahSiap = false;
-    }
-
     public static synchronized void siapkan() throws SQLException {
         if (sudahSiap) {
             return;
         }
-        try (Connection c = Koneksi.bukaServer(); Statement st = c.createStatement()) {
+        try (Connection c = Koneksi.buka(); Statement st = c.createStatement()) {
             for (String sql : bacaSkrip(SKEMA)) {
                 st.execute(sql);
             }

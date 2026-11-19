@@ -79,7 +79,7 @@ public final class UiUtil {
         if (dasar instanceof AplikasiException) {
             peringatan(induk, dasar.getMessage());
         } else if (dasar instanceof SQLException) {
-            error(induk, "Terjadi kesalahan pada database.\nPastikan MySQL berjalan dan pengaturan koneksi benar.\n\n"
+            error(induk, "Terjadi kesalahan pada database.\nPastikan DOCK-SCHED tidak sedang terbuka di jendela lain.\n\n"
                     + "Detail: " + ringkas(dasar.getMessage()));
         } else {
             error(induk, "Terjadi kesalahan yang tidak terduga:\n" + ringkas(String.valueOf(dasar)));
